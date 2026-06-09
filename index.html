@@ -1,1 +1,2086 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
+  <title>灰钟残火 · 像素魂系 Boss 战</title>
+
+  <style>
+    /* =========================================================
+       灰钟残火 · 单文件像素魂系小游戏
+       技术：HTML + CSS + JavaScript + Canvas
+       保存为 index.html 即可运行
+    ========================================================= */
+
+    :root {
+      --bg: #070912;
+      --panel: rgba(13, 16, 29, 0.82);
+      --panel2: rgba(20, 25, 42, 0.88);
+      --gold: #e2b76f;
+      --ember: #ff7846;
+      --blood: #b84242;
+      --cyan: #8ee8ff;
+      --violet: #a27bff;
+      --text: #f2efe6;
+      --muted: #a7a3a0;
+      --line: rgba(255, 255, 255, 0.14);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 18% 12%, rgba(142, 232, 255, 0.13), transparent 28%),
+        radial-gradient(circle at 80% 20%, rgba(162, 123, 255, 0.12), transparent 30%),
+        radial-gradient(circle at 50% 90%, rgba(255, 120, 70, 0.10), transparent 35%),
+        linear-gradient(135deg, #05060d, #0c1020 55%, #090814);
+      color: var(--text);
+      font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        "PingFang SC",
+        "Microsoft YaHei",
+        sans-serif;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+      background-size: 32px 32px;
+      mask-image: radial-gradient(circle at center, black 0%, transparent 80%);
+    }
+
+    .page {
+      width: 100%;
+      height: 100%;
+      display: grid;
+      place-items: center;
+      padding: 22px;
+    }
+
+    .cabinet {
+      width: min(96vw, 1280px);
+      height: min(92vh, 760px);
+      display: grid;
+      grid-template-columns: 1fr 330px;
+      gap: 18px;
+      position: relative;
+    }
+
+    .game-shell {
+      position: relative;
+      min-width: 0;
+      border-radius: 30px;
+      padding: 16px;
+      background:
+        linear-gradient(145deg, rgba(255,255,255,0.10), rgba(255,255,255,0.025)),
+        rgba(7, 9, 18, 0.78);
+      border: 1px solid rgba(255,255,255,0.16);
+      box-shadow:
+        0 28px 80px rgba(0,0,0,0.55),
+        inset 0 0 0 1px rgba(255,255,255,0.05);
+      backdrop-filter: blur(18px);
+    }
+
+    .screen-frame {
+      position: relative;
+      height: 100%;
+      min-height: 420px;
+      border-radius: 22px;
+      overflow: hidden;
+      background: #000;
+      border: 1px solid rgba(255,255,255,0.16);
+      box-shadow:
+        inset 0 0 70px rgba(0,0,0,0.85),
+        0 0 40px rgba(142,232,255,0.12);
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      background: #070912;
+      cursor: crosshair;
+    }
+
+    .scanlines {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        repeating-linear-gradient(
+          to bottom,
+          rgba(255,255,255,0.025),
+          rgba(255,255,255,0.025) 1px,
+          transparent 1px,
+          transparent 4px
+        );
+      mix-blend-mode: screen;
+      opacity: 0.32;
+    }
+
+    .vignette {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      box-shadow: inset 0 0 120px rgba(0,0,0,0.85);
+    }
+
+    .top-title {
+      position: absolute;
+      left: 22px;
+      top: 18px;
+      z-index: 10;
+      font-size: 13px;
+      letter-spacing: 0.18em;
+      color: rgba(242,239,230,0.65);
+      text-transform: uppercase;
+      pointer-events: none;
+    }
+
+    .side-panel {
+      border-radius: 30px;
+      padding: 20px;
+      background:
+        linear-gradient(145deg, rgba(255,255,255,0.09), rgba(255,255,255,0.025)),
+        var(--panel);
+      border: 1px solid rgba(255,255,255,0.15);
+      box-shadow:
+        0 28px 80px rgba(0,0,0,0.42),
+        inset 0 0 0 1px rgba(255,255,255,0.04);
+      backdrop-filter: blur(18px);
+      overflow: auto;
+    }
+
+    .side-panel h1 {
+      margin: 0 0 6px;
+      font-size: 30px;
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+      color: #fff7df;
+      text-shadow: 0 0 24px rgba(226,183,111,0.28);
+    }
+
+    .side-panel .sub {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.65;
+      margin-bottom: 16px;
+    }
+
+    .badge {
+      display: inline-flex;
+      gap: 7px;
+      align-items: center;
+      padding: 7px 10px;
+      border-radius: 999px;
+      color: var(--cyan);
+      background: rgba(142,232,255,0.09);
+      border: 1px solid rgba(142,232,255,0.20);
+      font-size: 12px;
+      margin-bottom: 14px;
+    }
+
+    .panel-card {
+      border-radius: 18px;
+      padding: 14px;
+      background: rgba(0,0,0,0.22);
+      border: 1px solid rgba(255,255,255,0.10);
+      margin: 12px 0;
+    }
+
+    .panel-card h2 {
+      margin: 0 0 8px;
+      font-size: 16px;
+      color: var(--gold);
+    }
+
+    .panel-card p {
+      margin: 0;
+      color: #d9d3c9;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .key-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .key {
+      border-radius: 12px;
+      padding: 9px 10px;
+      background: rgba(255,255,255,0.055);
+      border: 1px solid rgba(255,255,255,0.10);
+      font-size: 12px;
+      color: #ddd8d0;
+    }
+
+    .key b {
+      color: #fff4cf;
+    }
+
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    button {
+      border: none;
+      border-radius: 999px;
+      padding: 10px 14px;
+      color: #fff7df;
+      background: linear-gradient(135deg, rgba(226,183,111,0.95), rgba(174,75,45,0.95));
+      box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+      cursor: pointer;
+      font-weight: 700;
+      transition: transform 0.18s ease, filter 0.18s ease;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      filter: brightness(1.08);
+    }
+
+    button.secondary {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.14);
+      color: #e9e4dd;
+    }
+
+    .notice {
+      position: absolute;
+      left: 50%;
+      bottom: 20px;
+      transform: translateX(-50%);
+      width: min(720px, calc(100% - 40px));
+      padding: 14px 18px;
+      border-radius: 18px;
+      z-index: 20;
+      background: rgba(7,9,18,0.76);
+      border: 1px solid rgba(255,255,255,0.13);
+      color: #e9e1d2;
+      backdrop-filter: blur(12px);
+      font-size: 14px;
+      line-height: 1.65;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.35);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.35s ease, transform 0.35s ease;
+    }
+
+    .notice.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(-6px);
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 10px;
+      line-height: 1.65;
+    }
+
+    @media (max-width: 980px) {
+      .page {
+        padding: 10px;
+      }
+
+      .cabinet {
+        width: 100%;
+        height: 100%;
+        grid-template-columns: 1fr;
+      }
+
+      .side-panel {
+        display: none;
+      }
+
+      .game-shell {
+        padding: 8px;
+        border-radius: 18px;
+      }
+
+      .screen-frame {
+        min-height: 0;
+        height: calc(100vh - 20px);
+        border-radius: 14px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="page">
+    <section class="cabinet">
+      <div class="game-shell">
+        <div class="screen-frame">
+          <div class="top-title">Ash Bell Prototype</div>
+          <canvas id="game" width="480" height="270"></canvas>
+          <div class="scanlines"></div>
+          <div class="vignette"></div>
+          <div id="notice" class="notice"></div>
+        </div>
+      </div>
+
+      <aside class="side-panel">
+        <div class="badge">⚔ 单文件 Canvas 像素 Boss 战</div>
+        <h1>灰钟残火</h1>
+        <div class="sub">
+          一个原创像素魂系 Boss 战原型。你是“拾烬者”，要在断祷钟台终结最后的司钟者。
+        </div>
+
+        <div class="panel-card">
+          <h2>操作</h2>
+          <div class="key-grid">
+            <div class="key"><b>A / D</b> 移动</div>
+            <div class="key"><b>Shift / Space</b> 翻滚</div>
+            <div class="key"><b>J</b> 轻攻击</div>
+            <div class="key"><b>K</b> 重攻击</div>
+            <div class="key"><b>L</b> 弹反</div>
+            <div class="key"><b>I</b> 喝药</div>
+            <div class="key"><b>Esc</b> 暂停</div>
+            <div class="key"><b>R</b> 重开</div>
+          </div>
+        </div>
+
+        <div class="panel-card">
+          <h2>世界观</h2>
+          <p>
+            第七次未明日之后，城市失去了黎明。人们靠“葬曙钟”记住自己的名字，
+            但每一次钟响，都会烧掉一个人的过去。
+          </p>
+        </div>
+
+        <div class="panel-card">
+          <h2>Boss</h2>
+          <p>
+            葬曙司钟·莱桑德，把自己的脊骨钉进钟楼，成为最后的钟槌。
+            当血量过半，他会撕裂残钟，进入回响形态。
+          </p>
+        </div>
+
+        <div class="btn-row">
+          <button id="startBtn">开始 / 继续</button>
+          <button class="secondary" id="restartBtn">重新开始</button>
+          <button class="secondary" id="muteBtn">静音</button>
+        </div>
+
+        <div class="hint">
+          小提示：不要贪刀。Boss 每次出招都有前摇。翻滚有短暂无敌帧，弹反成功会造成大量韧性伤害。
+        </div>
+      </aside>
+    </section>
+  </main>
+
+  <script>
+    /* =========================================================
+       1. 基础配置区
+       你后续想改游戏难度、名字、数值，优先改这里
+    ========================================================= */
+
+    const CONFIG = {
+      W: 480,
+      H: 270,
+      groundY: 218,
+      gravity: 0,
+      reducedMotion: window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+      debug: false
+    };
+
+    const COLORS = {
+      black: "#05060b",
+      bg: "#080b17",
+      bg2: "#11162a",
+      stone: "#1d2435",
+      stone2: "#2a3248",
+      moon: "#dbe9f2",
+      fog: "rgba(180, 195, 220, 0.08)",
+      player: "#d8d1bd",
+      playerDark: "#6f6a5e",
+      ember: "#ff7846",
+      gold: "#e2b76f",
+      blood: "#b84242",
+      hp: "#d64b43",
+      stamina: "#79d77e",
+      boss: "#9f4d45",
+      bossDark: "#4a2026",
+      echo: "#a77cff",
+      white: "#f5efe5"
+    };
+
+    const KEY_BINDINGS = {
+      left: ["KeyA", "ArrowLeft"],
+      right: ["KeyD", "ArrowRight"],
+      dodge: ["ShiftLeft", "ShiftRight", "Space"],
+      light: ["KeyJ"],
+      heavy: ["KeyK"],
+      parry: ["KeyL"],
+      heal: ["KeyI"],
+      pause: ["Escape"],
+      restart: ["KeyR"],
+      debug: ["F2"],
+      mute: ["KeyM"],
+      start: ["Enter"]
+    };
+
+    /* =========================================================
+       2. DOM 与 Canvas
+    ========================================================= */
+
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d", { alpha: false });
+    ctx.imageSmoothingEnabled = false;
+
+    const noticeEl = document.getElementById("notice");
+    const startBtn = document.getElementById("startBtn");
+    const restartBtn = document.getElementById("restartBtn");
+    const muteBtn = document.getElementById("muteBtn");
+
+    /* =========================================================
+       3. 输入系统
+    ========================================================= */
+
+    const input = {
+      held: new Set(),
+      pressed: new Set()
+    };
+
+    function keyOf(e) {
+      return e.code || e.key;
+    }
+
+    window.addEventListener("keydown", (e) => {
+      const code = keyOf(e);
+
+      if (!input.held.has(code)) {
+        input.pressed.add(code);
+      }
+
+      input.held.add(code);
+
+      const allKeys = Object.values(KEY_BINDINGS).flat();
+      if (allKeys.includes(code)) {
+        e.preventDefault();
+      }
+    });
+
+    window.addEventListener("keyup", (e) => {
+      input.held.delete(keyOf(e));
+    });
+
+    function actionDown(name) {
+      return KEY_BINDINGS[name].some((code) => input.held.has(code));
+    }
+
+    function actionPressed(name) {
+      return KEY_BINDINGS[name].some((code) => input.pressed.has(code));
+    }
+
+    function endInputFrame() {
+      input.pressed.clear();
+    }
+
+    /* =========================================================
+       4. 音效系统：不需要外部文件，全部用 Web Audio 合成
+    ========================================================= */
+
+    let audioCtx = null;
+    let muted = false;
+
+    function unlockAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+
+      if (audioCtx.state === "suspended") {
+        audioCtx.resume();
+      }
+    }
+
+    function beep(type = "hit", volume = 0.08) {
+      if (muted || !audioCtx) return;
+
+      const now = audioCtx.currentTime;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      const filter = audioCtx.createBiquadFilter();
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      if (type === "slash") {
+        osc.type = "sawtooth";
+        osc.frequency.setValueAtTime(380, now);
+        osc.frequency.exponentialRampToValueAtTime(110, now + 0.09);
+        filter.type = "lowpass";
+        filter.frequency.value = 950;
+        gain.gain.setValueAtTime(volume, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+        osc.start(now);
+        osc.stop(now + 0.13);
+      }
+
+      if (type === "hit") {
+        osc.type = "square";
+        osc.frequency.setValueAtTime(95, now);
+        osc.frequency.exponentialRampToValueAtTime(42, now + 0.08);
+        filter.type = "lowpass";
+        filter.frequency.value = 500;
+        gain.gain.setValueAtTime(volume * 1.4, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.11);
+        osc.start(now);
+        osc.stop(now + 0.12);
+      }
+
+      if (type === "parry") {
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(720, now);
+        osc.frequency.exponentialRampToValueAtTime(1440, now + 0.05);
+        filter.type = "highpass";
+        filter.frequency.value = 400;
+        gain.gain.setValueAtTime(volume * 1.6, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+        osc.start(now);
+        osc.stop(now + 0.2);
+      }
+
+      if (type === "death") {
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(180, now);
+        osc.frequency.exponentialRampToValueAtTime(32, now + 0.8);
+        filter.type = "lowpass";
+        filter.frequency.value = 420;
+        gain.gain.setValueAtTime(volume * 1.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
+        osc.start(now);
+        osc.stop(now + 0.95);
+      }
+    }
+
+    /* =========================================================
+       5. 游戏状态与数据
+    ========================================================= */
+
+    const SAVE_KEY = "ash_bell_save_v1";
+
+    const save = loadSave();
+
+    function loadSave() {
+      try {
+        return JSON.parse(localStorage.getItem(SAVE_KEY)) || {
+          clears: 0,
+          deaths: 0,
+          bestTime: null
+        };
+      } catch {
+        return {
+          clears: 0,
+          deaths: 0,
+          bestTime: null
+        };
+      }
+    }
+
+    function writeSave() {
+      localStorage.setItem(SAVE_KEY, JSON.stringify(save));
+    }
+
+    const game = {
+      scene: "title",
+      time: 0,
+      startTime: 0,
+      elapsed: 0,
+      paused: false,
+      shake: 0,
+      flash: 0,
+      hitstop: 0,
+      messageTimer: 0,
+      message: "",
+      phaseMessage: "",
+      rain: [],
+      particles: [],
+      damageTexts: [],
+      projectiles: [],
+      hazards: [],
+      cameraX: 0
+    };
+
+    const player = {
+      x: 95,
+      y: CONFIG.groundY - 30,
+      w: 16,
+      h: 30,
+      vx: 0,
+      dir: 1,
+      hp: 100,
+      maxHp: 100,
+      stamina: 100,
+      maxStamina: 100,
+      staminaDelay: 0,
+      state: "idle",
+      stateTime: 0,
+      invuln: 0,
+      hitstun: 0,
+      attackTimer: 0,
+      attackType: null,
+      heal: 2,
+      parryWindow: 0,
+      dead: false
+    };
+
+    const boss = {
+      name: "葬曙司钟·莱桑德",
+      x: 350,
+      y: CONFIG.groundY - 58,
+      w: 44,
+      h: 58,
+      vx: 0,
+      dir: -1,
+      hp: 680,
+      maxHp: 680,
+      phase: 1,
+      state: "idle",
+      stateTime: 0,
+      attackId: null,
+      cooldown: 0,
+      invuln: 0,
+      poise: 80,
+      poiseMax: 80,
+      stunned: 0,
+      dead: false,
+      lastAttack: "",
+      phaseChanged: false
+    };
+
+    const loreLines = [
+      "第七次未明日之后，城市失去了黎明。",
+      "葬曙钟每响一次，都会让一个人记起名字，也会烧掉一个人的过去。",
+      "司钟者莱桑德把自己的脊骨钉进钟楼，成为最后的钟槌。",
+      "你是拾烬者，胸口藏着不会熄灭的余火。",
+      "你不是来夺走钟声，而是来终结一场拖得太久的牺牲。"
+    ];
+
+    /* =========================================================
+       6. 初始化
+    ========================================================= */
+
+    function resetGame() {
+      Object.assign(player, {
+        x: 95,
+        y: CONFIG.groundY - 30,
+        w: 16,
+        h: 30,
+        vx: 0,
+        dir: 1,
+        hp: 100,
+        maxHp: 100,
+        stamina: 100,
+        maxStamina: 100,
+        staminaDelay: 0,
+        state: "idle",
+        stateTime: 0,
+        invuln: 0,
+        hitstun: 0,
+        attackTimer: 0,
+        attackType: null,
+        heal: 2,
+        parryWindow: 0,
+        dead: false
+      });
+
+      Object.assign(boss, {
+        x: 350,
+        y: CONFIG.groundY - 58,
+        w: 44,
+        h: 58,
+        vx: 0,
+        dir: -1,
+        hp: 680,
+        maxHp: 680,
+        phase: 1,
+        state: "idle",
+        stateTime: 0,
+        attackId: null,
+        cooldown: 0,
+        invuln: 0,
+        poise: 80,
+        poiseMax: 80,
+        stunned: 0,
+        dead: false,
+        lastAttack: "",
+        phaseChanged: false
+      });
+
+      game.time = 0;
+      game.elapsed = 0;
+      game.startTime = performance.now();
+      game.hitstop = 0;
+      game.shake = 0;
+      game.flash = 0;
+      game.message = "";
+      game.messageTimer = 0;
+      game.phaseMessage = "";
+      game.particles.length = 0;
+      game.damageTexts.length = 0;
+      game.projectiles.length = 0;
+      game.hazards.length = 0;
+
+      initRain();
+    }
+
+    function initRain() {
+      game.rain.length = 0;
+
+      for (let i = 0; i < 95; i++) {
+        game.rain.push({
+          x: Math.random() * CONFIG.W,
+          y: Math.random() * CONFIG.H,
+          spd: 70 + Math.random() * 110,
+          len: 4 + Math.random() * 8
+        });
+      }
+    }
+
+    initRain();
+
+    /* =========================================================
+       7. 工具函数
+    ========================================================= */
+
+    function clamp(v, min, max) {
+      return Math.max(min, Math.min(max, v));
+    }
+
+    function rectsOverlap(a, b) {
+      return (
+        a.x < b.x + b.w &&
+        a.x + a.w > b.x &&
+        a.y < b.y + b.h &&
+        a.y + a.h > b.y
+      );
+    }
+
+    function showNotice(text, time = 2600) {
+      noticeEl.innerHTML = text;
+      noticeEl.classList.add("show");
+
+      clearTimeout(showNotice._t);
+      showNotice._t = setTimeout(() => {
+        noticeEl.classList.remove("show");
+      }, time);
+    }
+
+    function addParticle(x, y, color, count = 8, power = 1) {
+      for (let i = 0; i < count; i++) {
+        game.particles.push({
+          x,
+          y,
+          vx: (Math.random() - 0.5) * 75 * power,
+          vy: (Math.random() - 0.8) * 65 * power,
+          life: 0.35 + Math.random() * 0.35,
+          maxLife: 0.7,
+          color,
+          size: 1 + Math.random() * 3
+        });
+      }
+    }
+
+    function addDamageText(x, y, text, color = COLORS.white) {
+      game.damageTexts.push({
+        x,
+        y,
+        text,
+        color,
+        life: 0.85
+      });
+    }
+
+    function staminaCost(cost) {
+      if (player.stamina < cost) return false;
+      player.stamina -= cost;
+      player.staminaDelay = 0.45;
+      return true;
+    }
+
+    function setPlayerState(stateName) {
+      player.state = stateName;
+      player.stateTime = 0;
+    }
+
+    function setBossState(stateName, attackId = null) {
+      boss.state = stateName;
+      boss.attackId = attackId;
+      boss.stateTime = 0;
+    }
+
+    function hitstop(ms) {
+      game.hitstop = Math.max(game.hitstop, ms / 1000);
+    }
+
+    function shake(amount) {
+      if (!CONFIG.reducedMotion) {
+        game.shake = Math.max(game.shake, amount);
+      }
+    }
+
+    function playerHurtbox() {
+      return {
+        x: player.x,
+        y: player.y,
+        w: player.w,
+        h: player.h
+      };
+    }
+
+    function bossHurtbox() {
+      return {
+        x: boss.x,
+        y: boss.y,
+        w: boss.w,
+        h: boss.h
+      };
+    }
+
+    /* =========================================================
+       8. 玩家逻辑
+    ========================================================= */
+
+    function updatePlayer(dt) {
+      if (player.dead) return;
+
+      player.stateTime += dt;
+      player.invuln = Math.max(0, player.invuln - dt);
+      player.hitstun = Math.max(0, player.hitstun - dt);
+      player.parryWindow = Math.max(0, player.parryWindow - dt);
+
+      if (player.staminaDelay > 0) {
+        player.staminaDelay -= dt;
+      } else {
+        const rate = Math.abs(player.vx) > 0.1 ? 24 : 34;
+        player.stamina = clamp(player.stamina + rate * dt, 0, player.maxStamina);
+      }
+
+      if (player.hp <= 0) {
+        killPlayer();
+        return;
+      }
+
+      if (player.hitstun > 0) {
+        player.vx *= 0.75;
+        player.x += player.vx * dt;
+        keepPlayerInArena();
+        return;
+      }
+
+      const move = (actionDown("right") ? 1 : 0) - (actionDown("left") ? 1 : 0);
+
+      if (["attack", "heavy", "heal", "parry"].includes(player.state)) {
+        player.vx = 0;
+      } else if (player.state === "dodge") {
+        const dodgeSpeed = 148;
+        player.vx = player.dir * dodgeSpeed;
+      } else {
+        player.vx = move * 76;
+
+        if (move !== 0) {
+          player.dir = move;
+        }
+      }
+
+      if (actionPressed("dodge") && player.state !== "dodge" && !["attack", "heavy", "heal"].includes(player.state)) {
+        if (staminaCost(24)) {
+          setPlayerState("dodge");
+          player.invuln = 0.24;
+          beep("slash", 0.035);
+        }
+      }
+
+      if (actionPressed("light") && canPlayerAct()) {
+        if (staminaCost(18)) {
+          setPlayerState("attack");
+          player.attackTimer = 0.34;
+          player.attackType = "light";
+          beep("slash", 0.06);
+        }
+      }
+
+      if (actionPressed("heavy") && canPlayerAct()) {
+        if (staminaCost(30)) {
+          setPlayerState("heavy");
+          player.attackTimer = 0.56;
+          player.attackType = "heavy";
+          beep("slash", 0.075);
+        }
+      }
+
+      if (actionPressed("parry") && canPlayerAct()) {
+        if (staminaCost(16)) {
+          setPlayerState("parry");
+          player.parryWindow = 0.13;
+          beep("parry", 0.035);
+        }
+      }
+
+      if (actionPressed("heal") && canPlayerAct() && player.heal > 0 && player.hp < player.maxHp) {
+        setPlayerState("heal");
+        player.heal--;
+      }
+
+      player.x += player.vx * dt;
+      keepPlayerInArena();
+
+      updatePlayerState(dt);
+    }
+
+    function canPlayerAct() {
+      return ["idle", "walk"].includes(player.state);
+    }
+
+    function keepPlayerInArena() {
+      player.x = clamp(player.x, 28, CONFIG.W - 28 - player.w);
+    }
+
+    function updatePlayerState(dt) {
+      if (player.state === "dodge") {
+        if (player.stateTime > 0.34) {
+          setPlayerState("idle");
+        }
+        return;
+      }
+
+      if (player.state === "attack") {
+        if (player.stateTime > 0.12 && player.stateTime < 0.20) {
+          checkPlayerAttack("light");
+        }
+
+        if (player.stateTime > 0.34) {
+          setPlayerState("idle");
+        }
+
+        return;
+      }
+
+      if (player.state === "heavy") {
+        if (player.stateTime > 0.24 && player.stateTime < 0.34) {
+          checkPlayerAttack("heavy");
+        }
+
+        if (player.stateTime > 0.58) {
+          setPlayerState("idle");
+        }
+
+        return;
+      }
+
+      if (player.state === "parry") {
+        if (player.stateTime > 0.32) {
+          setPlayerState("idle");
+        }
+
+        return;
+      }
+
+      if (player.state === "heal") {
+        if (player.stateTime > 0.62) {
+          player.hp = clamp(player.hp + 38, 0, player.maxHp);
+          addDamageText(player.x, player.y - 12, "+38", "#80ff9c");
+          addParticle(player.x + 8, player.y + 14, "#80ff9c", 14, 0.9);
+          beep("parry", 0.04);
+          setPlayerState("idle");
+        }
+
+        return;
+      }
+
+      if (Math.abs(player.vx) > 0.1) {
+        player.state = "walk";
+      } else {
+        player.state = "idle";
+      }
+    }
+
+    let playerAttackMemory = {
+      light: false,
+      heavy: false
+    };
+
+    function checkPlayerAttack(type) {
+      if (playerAttackMemory[type]) return;
+
+      const range = type === "heavy" ? 34 : 26;
+      const damage = type === "heavy" ? 38 : 22;
+      const poiseDamage = type === "heavy" ? 28 : 12;
+
+      const box = {
+        x: player.dir > 0 ? player.x + player.w : player.x - range,
+        y: player.y + 6,
+        w: range,
+        h: 18
+      };
+
+      if (rectsOverlap(box, bossHurtbox()) && !boss.dead && boss.invuln <= 0) {
+        damageBoss(damage, poiseDamage, type);
+        playerAttackMemory[type] = true;
+      }
+
+      setTimeout(() => {
+        playerAttackMemory[type] = false;
+      }, 120);
+    }
+
+    function damageBoss(amount, poiseDamage, type) {
+      boss.hp = clamp(boss.hp - amount, 0, boss.maxHp);
+      boss.poise -= poiseDamage;
+      boss.invuln = 0.09;
+
+      addDamageText(boss.x + boss.w / 2, boss.y + 8, String(amount), type === "heavy" ? COLORS.gold : COLORS.white);
+      addParticle(boss.x + boss.w / 2, boss.y + 18, type === "heavy" ? COLORS.gold : COLORS.ember, type === "heavy" ? 18 : 10, 1.3);
+      beep("hit", type === "heavy" ? 0.08 : 0.06);
+      hitstop(type === "heavy" ? 70 : 45);
+      shake(type === "heavy" ? 4 : 2);
+
+      if (boss.poise <= 0) {
+        boss.poise = boss.phase === 1 ? 80 : 100;
+        boss.stunned = 1.05;
+        setBossState("stunned");
+        addDamageText(boss.x + boss.w / 2 - 10, boss.y - 4, "破势!", COLORS.gold);
+        addParticle(boss.x + boss.w / 2, boss.y + 20, COLORS.gold, 30, 1.6);
+        beep("parry", 0.09);
+        hitstop(110);
+        shake(8);
+      }
+
+      if (boss.hp <= 0) {
+        killBoss();
+      }
+    }
+
+    function damagePlayer(amount, sourceX, label = "") {
+      if (player.invuln > 0 || player.dead) return;
+
+      if (player.parryWindow > 0) {
+        boss.poise -= 42;
+        boss.stunned = 0.55;
+        setBossState("stunned");
+        addDamageText(player.x - 5, player.y - 14, "弹反!", COLORS.gold);
+        addParticle(player.x + player.w / 2, player.y + 10, COLORS.gold, 26, 1.7);
+        beep("parry", 0.10);
+        hitstop(100);
+        shake(7);
+        return;
+      }
+
+      player.hp = clamp(player.hp - amount, 0, player.maxHp);
+      player.hitstun = 0.22;
+      player.invuln = 0.45;
+      player.vx = sourceX < player.x ? 80 : -80;
+
+      addDamageText(player.x + player.w / 2, player.y - 8, "-" + amount, COLORS.blood);
+      addParticle(player.x + player.w / 2, player.y + 14, COLORS.blood, 18, 1.4);
+      beep("hit", 0.08);
+      hitstop(70);
+      shake(7);
+
+      if (label) {
+        game.message = label;
+        game.messageTimer = 1.2;
+      }
+
+      if (player.hp <= 0) {
+        killPlayer();
+      }
+    }
+
+    function killPlayer() {
+      if (player.dead) return;
+
+      player.dead = true;
+      game.scene = "gameover";
+      save.deaths++;
+      writeSave();
+      beep("death", 0.08);
+      showNotice("你倒下了。<br>灰烬会记住你的失败。按 R 重开。", 4200);
+    }
+
+    function killBoss() {
+      if (boss.dead) return;
+
+      boss.dead = true;
+      game.scene = "victory";
+      save.clears++;
+      const clearTime = performance.now() - game.startTime;
+
+      if (!save.bestTime || clearTime < save.bestTime) {
+        save.bestTime = clearTime;
+      }
+
+      writeSave();
+
+      beep("parry", 0.12);
+      addParticle(boss.x + boss.w / 2, boss.y + boss.h / 2, COLORS.gold, 80, 2.2);
+      shake(12);
+      showNotice("钟声停止了。<br>城市第一次听见自己的沉默。", 6200);
+    }
+
+    /* =========================================================
+       9. Boss AI 与招式
+    ========================================================= */
+
+    const BOSS_ATTACKS = {
+      thrust: {
+        name: "祷钟直刺",
+        windup: 0.46,
+        activeStart: 0.46,
+        activeEnd: 0.57,
+        recover: 0.88,
+        damage: 16,
+        range: 54,
+        height: 20
+      },
+      sweep: {
+        name: "低位扫铃",
+        windup: 0.56,
+        activeStart: 0.56,
+        activeEnd: 0.70,
+        recover: 1.02,
+        damage: 14,
+        range: 68,
+        height: 16
+      },
+      smash: {
+        name: "迟祷坠斩",
+        windup: 0.85,
+        activeStart: 0.85,
+        activeEnd: 1.02,
+        recover: 1.36,
+        damage: 24,
+        range: 48,
+        height: 30
+      },
+      dash: {
+        name: "鸣潮冲锋",
+        windup: 0.42,
+        activeStart: 0.42,
+        activeEnd: 0.90,
+        recover: 1.15,
+        damage: 18,
+        range: 42,
+        height: 34
+      },
+      ring: {
+        name: "空祷环爆",
+        windup: 0.70,
+        activeStart: 0.70,
+        activeEnd: 0.95,
+        recover: 1.30,
+        damage: 20,
+        range: 999,
+        height: 999
+      },
+      bolts: {
+        name: "失名弹",
+        windup: 0.55,
+        activeStart: 0.55,
+        activeEnd: 0.70,
+        recover: 1.15,
+        damage: 6,
+        range: 999,
+        height: 999
+      }
+    };
+
+    function updateBoss(dt) {
+      if (boss.dead || player.dead) return;
+
+      boss.stateTime += dt;
+      boss.invuln = Math.max(0, boss.invuln - dt);
+      boss.cooldown = Math.max(0, boss.cooldown - dt);
+
+      boss.dir = player.x + player.w / 2 < boss.x + boss.w / 2 ? -1 : 1;
+
+      if (boss.hp <= boss.maxHp * 0.5 && boss.phase === 1 && !boss.phaseChanged) {
+        boss.phase = 2;
+        boss.phaseChanged = true;
+        boss.poiseMax = 100;
+        boss.poise = 100;
+        setBossState("phase");
+        game.phaseMessage = "第二阶段 · 裂钟回响";
+        game.flash = 0.7;
+        shake(12);
+        beep("death", 0.05);
+        addParticle(boss.x + boss.w / 2, boss.y + 25, COLORS.echo, 70, 2.2);
+        showNotice("残钟裂开了。<br>莱桑德的胸腔里，钟声开始倒流。", 4200);
+        return;
+      }
+
+      if (boss.state === "phase") {
+        if (boss.stateTime > 2.3) {
+          setBossState("idle");
+        }
+        return;
+      }
+
+      if (boss.state === "stunned") {
+        boss.stunned -= dt;
+
+        if (boss.stunned <= 0) {
+          setBossState("idle");
+        }
+
+        return;
+      }
+
+      if (boss.state === "attack") {
+        updateBossAttack(dt);
+        return;
+      }
+
+      const dist = Math.abs(player.x - boss.x);
+
+      if (boss.cooldown <= 0) {
+        const attack = chooseBossAttack(dist);
+        if (attack) {
+          setBossState("attack", attack);
+          boss.cooldown = boss.phase === 1 ? 0.35 : 0.22;
+          return;
+        }
+      }
+
+      const desired = boss.phase === 1 ? 58 : 72;
+      const speed = boss.phase === 1 ? 35 : 48;
+
+      if (dist > desired + 18) {
+        boss.vx = boss.dir * speed;
+      } else if (dist < desired - 22) {
+        boss.vx = -boss.dir * 28;
+      } else {
+        boss.vx = 0;
+      }
+
+      boss.x += boss.vx * dt;
+      boss.x = clamp(boss.x, 35, CONFIG.W - 35 - boss.w);
+    }
+
+    function chooseBossAttack(dist) {
+      const p2 = boss.phase === 2;
+      const choices = [];
+
+      if (dist < 72) {
+        choices.push("thrust", "sweep", "smash");
+      }
+
+      if (p2 && dist > 90) {
+        choices.push("dash", "bolts");
+      }
+
+      if (p2 && dist < 90) {
+        choices.push("ring", "double");
+      }
+
+      if (!choices.length) {
+        choices.push("thrust");
+      }
+
+      let attack = choices[Math.floor(Math.random() * choices.length)];
+
+      if (attack === "double") {
+        attack = Math.random() > 0.5 ? "sweep" : "smash";
+      }
+
+      if (attack === boss.lastAttack && choices.length > 1) {
+        attack = choices[(choices.indexOf(attack) + 1) % choices.length];
+      }
+
+      boss.lastAttack = attack;
+      return attack;
+    }
+
+    let bossAttackMemory = false;
+
+    function updateBossAttack(dt) {
+      const data = BOSS_ATTACKS[boss.attackId];
+
+      if (!data) {
+        setBossState("idle");
+        return;
+      }
+
+      if (boss.attackId === "dash" && boss.stateTime > data.activeStart && boss.stateTime < data.activeEnd) {
+        boss.x += boss.dir * 145 * dt;
+        boss.x = clamp(boss.x, 25, CONFIG.W - 25 - boss.w);
+      }
+
+      if (boss.stateTime > data.activeStart && boss.stateTime < data.activeEnd && !bossAttackMemory) {
+        bossAttackMemory = true;
+
+        if (boss.attackId === "bolts") {
+          spawnBolts();
+        } else if (boss.attackId === "ring") {
+          spawnRing();
+        } else {
+          checkBossMelee(data);
+        }
+      }
+
+      if (boss.stateTime > data.activeEnd + 0.1) {
+        bossAttackMemory = false;
+      }
+
+      if (boss.stateTime > data.recover) {
+        setBossState("idle");
+        boss.cooldown = boss.phase === 1 ? 0.45 : 0.32;
+        bossAttackMemory = false;
+      }
+    }
+
+    function checkBossMelee(data) {
+      const box = {
+        x: boss.dir > 0 ? boss.x + boss.w - 4 : boss.x - data.range + 4,
+        y: boss.y + 16,
+        w: data.range,
+        h: data.height
+      };
+
+      if (rectsOverlap(box, playerHurtbox())) {
+        damagePlayer(data.damage, boss.x, data.name);
+      }
+
+      addParticle(
+        boss.dir > 0 ? boss.x + boss.w + data.range * 0.5 : boss.x - data.range * 0.5,
+        boss.y + 28,
+        boss.phase === 1 ? COLORS.ember : COLORS.echo,
+        12,
+        1.1
+      );
+    }
+
+    function spawnBolts() {
+      for (let i = 0; i < 5; i++) {
+        game.projectiles.push({
+          x: boss.x + boss.w / 2,
+          y: boss.y + 10 + i * 4,
+          vx: boss.dir * (58 + i * 10),
+          vy: -18 + i * 8,
+          life: 3,
+          damage: 6,
+          color: COLORS.echo,
+          size: 4
+        });
+      }
+
+      addParticle(boss.x + boss.w / 2, boss.y + 18, COLORS.echo, 20, 1.3);
+    }
+
+    function spawnRing() {
+      game.hazards.push({
+        x: boss.x + boss.w / 2,
+        y: CONFIG.groundY,
+        r: 10,
+        maxR: 102,
+        life: 0.85,
+        damage: 20,
+        hit: false
+      });
+
+      addParticle(boss.x + boss.w / 2, CONFIG.groundY - 5, COLORS.echo, 25, 1.3);
+      shake(5);
+    }
+
+    /* =========================================================
+       10. 投射物、陷阱、粒子
+    ========================================================= */
+
+    function updateProjectiles(dt) {
+      for (let i = game.projectiles.length - 1; i >= 0; i--) {
+        const p = game.projectiles[i];
+
+        p.life -= dt;
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+
+        const box = {
+          x: p.x - p.size,
+          y: p.y - p.size,
+          w: p.size * 2,
+          h: p.size * 2
+        };
+
+        if (rectsOverlap(box, playerHurtbox())) {
+          damagePlayer(p.damage, p.x, "失名弹");
+          game.projectiles.splice(i, 1);
+          continue;
+        }
+
+        if (p.life <= 0 || p.x < -20 || p.x > CONFIG.W + 20) {
+          game.projectiles.splice(i, 1);
+        }
+      }
+    }
+
+    function updateHazards(dt) {
+      for (let i = game.hazards.length - 1; i >= 0; i--) {
+        const h = game.hazards[i];
+
+        h.life -= dt;
+        h.r += 150 * dt;
+
+        const playerCenter = player.x + player.w / 2;
+        const dist = Math.abs(playerCenter - h.x);
+        const nearRing = Math.abs(dist - h.r) < 9;
+
+        if (!h.hit && nearRing && Math.abs(player.y + player.h - h.y) < 40) {
+          h.hit = true;
+          damagePlayer(h.damage, h.x, "空祷环爆");
+        }
+
+        if (h.life <= 0 || h.r > h.maxR) {
+          game.hazards.splice(i, 1);
+        }
+      }
+    }
+
+    function updateParticles(dt) {
+      for (let i = game.particles.length - 1; i >= 0; i--) {
+        const p = game.particles[i];
+
+        p.life -= dt;
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.vy += 80 * dt;
+
+        if (p.life <= 0) {
+          game.particles.splice(i, 1);
+        }
+      }
+
+      for (let i = game.damageTexts.length - 1; i >= 0; i--) {
+        const t = game.damageTexts[i];
+
+        t.life -= dt;
+        t.y -= 18 * dt;
+
+        if (t.life <= 0) {
+          game.damageTexts.splice(i, 1);
+        }
+      }
+    }
+
+    function updateRain(dt) {
+      for (const r of game.rain) {
+        r.y += r.spd * dt;
+        r.x -= 14 * dt;
+
+        if (r.y > CONFIG.H + 10) {
+          r.y = -10;
+          r.x = Math.random() * CONFIG.W;
+        }
+
+        if (r.x < -10) {
+          r.x = CONFIG.W + 10;
+        }
+      }
+    }
+
+    /* =========================================================
+       11. 总更新函数
+    ========================================================= */
+
+    function update(dt) {
+      game.time += dt;
+      game.elapsed = performance.now() - game.startTime;
+
+      if (game.scene === "title") {
+        updateRain(dt);
+
+        if (actionPressed("start") || actionPressed("light")) {
+          startPlaying();
+        }
+
+        endInputFrame();
+        return;
+      }
+
+      if (actionPressed("mute")) {
+        muted = !muted;
+        muteBtn.textContent = muted ? "解除静音" : "静音";
+      }
+
+      if (actionPressed("debug")) {
+        CONFIG.debug = !CONFIG.debug;
+      }
+
+      if (actionPressed("pause") && game.scene === "playing") {
+        game.scene = "pause";
+        showNotice("已暂停。按 Esc 继续。", 1200);
+      } else if (actionPressed("pause") && game.scene === "pause") {
+        game.scene = "playing";
+      }
+
+      if (actionPressed("restart")) {
+        startPlaying();
+      }
+
+      if (game.scene !== "playing") {
+        updateRain(dt);
+        updateParticles(dt);
+        endInputFrame();
+        return;
+      }
+
+      if (game.hitstop > 0) {
+        game.hitstop -= dt;
+        updateParticles(dt);
+        endInputFrame();
+        return;
+      }
+
+      game.flash = Math.max(0, game.flash - dt);
+      game.shake = Math.max(0, game.shake - 25 * dt);
+      game.messageTimer = Math.max(0, game.messageTimer - dt);
+
+      updateRain(dt);
+      updatePlayer(dt);
+      updateBoss(dt);
+      updateProjectiles(dt);
+      updateHazards(dt);
+      updateParticles(dt);
+
+      endInputFrame();
+    }
+
+    function startPlaying() {
+      unlockAudio();
+      resetGame();
+      game.scene = "playing";
+      showNotice("拾烬者苏醒。<br>击败葬曙司钟，终结钟声。", 3000);
+    }
+
+    /* =========================================================
+       12. 绘制函数
+    ========================================================= */
+
+    function px(v) {
+      return Math.round(v);
+    }
+
+    function draw() {
+      ctx.save();
+
+      let sx = 0;
+      let sy = 0;
+
+      if (game.shake > 0) {
+        sx = (Math.random() - 0.5) * game.shake;
+        sy = (Math.random() - 0.5) * game.shake;
+      }
+
+      ctx.translate(px(sx), px(sy));
+
+      drawBackground();
+      drawArena();
+      drawRain();
+      drawHazards();
+      drawProjectiles();
+
+      if (!boss.dead) drawBoss();
+      if (!player.dead) drawPlayer();
+
+      drawParticles();
+      drawDamageTexts();
+      drawHUD();
+
+      if (game.scene === "title") drawTitle();
+      if (game.scene === "pause") drawPause();
+      if (game.scene === "gameover") drawGameOver();
+      if (game.scene === "victory") drawVictory();
+
+      if (game.flash > 0) {
+        ctx.fillStyle = `rgba(220, 235, 255, ${game.flash * 0.28})`;
+        ctx.fillRect(0, 0, CONFIG.W, CONFIG.H);
+      }
+
+      ctx.restore();
+    }
+
+    function drawBackground() {
+      const t = game.time;
+
+      ctx.fillStyle = COLORS.bg;
+      ctx.fillRect(0, 0, CONFIG.W, CONFIG.H);
+
+      const grad = ctx.createLinearGradient(0, 0, 0, CONFIG.H);
+      grad.addColorStop(0, "#090c19");
+      grad.addColorStop(0.6, "#10152b");
+      grad.addColorStop(1, "#08070b");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, CONFIG.W, CONFIG.H);
+
+      ctx.fillStyle = "rgba(219, 233, 242, 0.82)";
+      ctx.beginPath();
+      ctx.arc(386, 50, 22, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = "rgba(8, 11, 23, 0.55)";
+      ctx.beginPath();
+      ctx.arc(376, 45, 22, 0, Math.PI * 2);
+      ctx.fill();
+
+      drawFarCity(0.2, "#12182a", 128);
+      drawFarCity(0.45, "#171d31", 148);
+
+      ctx.fillStyle = "rgba(142, 232, 255, 0.035)";
+      for (let i = 0; i < 9; i++) {
+        const x = i * 58 + Math.sin(t * 0.2 + i) * 4;
+        ctx.fillRect(x, 0, 1, CONFIG.H);
+      }
+
+      ctx.fillStyle = "rgba(226, 183, 111, 0.06)";
+      ctx.fillRect(0, 145 + Math.sin(t) * 1, CONFIG.W, 10);
+    }
+
+    function drawFarCity(speed, color, baseY) {
+      ctx.fillStyle = color;
+
+      for (let i = 0; i < 16; i++) {
+        const x = i * 34 - ((game.time * speed * 6) % 34);
+        const h = 20 + ((i * 17) % 45);
+        ctx.fillRect(px(x), baseY - h, 18, h);
+        ctx.fillRect(px(x + 5), baseY - h - 13, 8, 13);
+
+        if (i % 4 === 0) {
+          ctx.fillRect(px(x + 8), baseY - h - 28, 3, 28);
+        }
+      }
+    }
+
+    function drawArena() {
+      ctx.fillStyle = "#14131a";
+      ctx.fillRect(0, CONFIG.groundY, CONFIG.W, CONFIG.H - CONFIG.groundY);
+
+      for (let x = 0; x < CONFIG.W; x += 24) {
+        ctx.fillStyle = x % 48 === 0 ? "#202436" : "#1a1d2b";
+        ctx.fillRect(x, CONFIG.groundY, 23, 11);
+        ctx.fillStyle = "#0e101a";
+        ctx.fillRect(x, CONFIG.groundY + 11, 23, 2);
+      }
+
+      ctx.fillStyle = "rgba(226,183,111,0.18)";
+      for (let x = 20; x < CONFIG.W; x += 58) {
+        ctx.fillRect(x, CONFIG.groundY - 17, 3, 17);
+        ctx.fillRect(x - 4, CONFIG.groundY - 19, 11, 3);
+      }
+
+      ctx.fillStyle = "#0b0d14";
+      ctx.fillRect(0, CONFIG.groundY + 32, CONFIG.W, 16);
+
+      ctx.fillStyle = "rgba(255,120,70,0.16)";
+      ctx.fillRect(0, CONFIG.groundY - 2, CONFIG.W, 2);
+    }
+
+    function drawRain() {
+      ctx.strokeStyle = "rgba(186,205,225,0.24)";
+      ctx.lineWidth = 1;
+
+      for (const r of game.rain) {
+        ctx.beginPath();
+        ctx.moveTo(px(r.x), px(r.y));
+        ctx.lineTo(px(r.x - 2), px(r.y + r.len));
+        ctx.stroke();
+      }
+    }
+
+    function drawPlayer() {
+      const blink = player.invuln > 0 && Math.floor(game.time * 24) % 2 === 0;
+      if (blink) return;
+
+      const x = px(player.x);
+      const y = px(player.y);
+      const d = player.dir;
+
+      ctx.fillStyle = "#11131c";
+      ctx.fillRect(x + 2, y + player.h, 13, 3);
+
+      ctx.fillStyle = COLORS.playerDark;
+      ctx.fillRect(x + 4, y + 8, 8, 17);
+
+      ctx.fillStyle = COLORS.player;
+      ctx.fillRect(x + 5, y + 2, 7, 7);
+      ctx.fillRect(x + 3, y + 10, 11, 11);
+
+      ctx.fillStyle = COLORS.ember;
+      ctx.fillRect(x + 7, y + 15, 3, 4);
+
+      ctx.fillStyle = "#6b625a";
+      ctx.fillRect(x + 4, y + 25, 4, 5);
+      ctx.fillRect(x + 10, y + 25, 4, 5);
+
+      ctx.fillStyle = "#d6d6da";
+      if (player.state === "attack") {
+        ctx.fillRect(d > 0 ? x + 13 : x - 15, y + 13, 18, 2);
+        ctx.fillRect(d > 0 ? x + 28 : x - 17, y + 12, 3, 4);
+      } else if (player.state === "heavy") {
+        ctx.fillRect(d > 0 ? x + 12 : x - 24, y + 9, 28, 3);
+        ctx.fillStyle = COLORS.gold;
+        ctx.fillRect(d > 0 ? x + 34 : x - 25, y + 8, 4, 5);
+      } else if (player.state === "parry") {
+        ctx.fillStyle = COLORS.gold;
+        ctx.fillRect(d > 0 ? x + 12 : x - 4, y + 10, 7, 12);
+      } else {
+        ctx.fillRect(d > 0 ? x + 12 : x - 2, y + 12, 8, 2);
+      }
+
+      if (player.state === "dodge") {
+        ctx.fillStyle = "rgba(226,183,111,0.28)";
+        ctx.fillRect(x - 4, y + 8, 24, 16);
+      }
+    }
+
+    function drawBoss() {
+      const x = px(boss.x);
+      const y = px(boss.y);
+      const d = boss.dir;
+      const p2 = boss.phase === 2;
+
+      if (boss.state === "phase") {
+        ctx.fillStyle = `rgba(167,124,255,${0.15 + Math.sin(game.time * 18) * 0.08})`;
+        ctx.fillRect(0, 0, CONFIG.W, CONFIG.H);
+      }
+
+      ctx.fillStyle = "rgba(0,0,0,0.35)";
+      ctx.fillRect(x + 4, y + boss.h, boss.w - 4, 4);
+
+      ctx.fillStyle = p2 ? "#3b173f" : COLORS.bossDark;
+      ctx.fillRect(x + 9, y + 17, 24, 36);
+
+      ctx.fillStyle = p2 ? COLORS.echo : COLORS.boss;
+      ctx.fillRect(x + 12, y + 8, 18, 12);
+      ctx.fillRect(x + 6, y + 24, 32, 20);
+
+      ctx.fillStyle = "#d8c4b5";
+      ctx.fillRect(x + 16, y + 4, 10, 8);
+
+      ctx.fillStyle = p2 ? COLORS.echo : COLORS.gold;
+      ctx.fillRect(x + 18, y + 10, 2, 2);
+      ctx.fillRect(x + 24, y + 10, 2, 2);
+
+      ctx.fillStyle = p2 ? "rgba(167,124,255,0.45)" : "rgba(226,183,111,0.30)";
+      ctx.fillRect(x + 5, y + 2, 33, 52);
+
+      ctx.strokeStyle = p2 ? COLORS.echo : COLORS.gold;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(x + 22, y + 20, p2 ? 27 : 22, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.fillStyle = "#c9cbd0";
+      if (boss.state === "attack") {
+        const a = boss.attackId;
+
+        if (a === "smash") {
+          ctx.fillRect(d > 0 ? x + 34 : x - 26, y + 0, 30, 4);
+          ctx.fillStyle = COLORS.gold;
+          ctx.fillRect(d > 0 ? x + 60 : x - 28, y - 2, 5, 8);
+        } else if (a === "sweep") {
+          ctx.fillRect(d > 0 ? x + 34 : x - 40, y + 41, 42, 3);
+          ctx.fillStyle = COLORS.ember;
+          ctx.fillRect(d > 0 ? x + 74 : x - 42, y + 39, 5, 7);
+        } else {
+          ctx.fillRect(d > 0 ? x + 34 : x - 42, y + 28, 44, 3);
+          ctx.fillStyle = p2 ? COLORS.echo : COLORS.gold;
+          ctx.fillRect(d > 0 ? x + 75 : x - 44, y + 25, 6, 8);
+        }
+      } else {
+        ctx.fillRect(d > 0 ? x + 34 : x - 14, y + 28, 16, 3);
+      }
+
+      if (boss.state === "stunned") {
+        ctx.fillStyle = COLORS.gold;
+        ctx.fillRect(x + 10, y - 10, 6, 3);
+        ctx.fillRect(x + 22, y - 14, 6, 3);
+        ctx.fillRect(x + 34, y - 9, 6, 3);
+      }
+    }
+
+    function drawHazards() {
+      for (const h of game.hazards) {
+        ctx.strokeStyle = "rgba(167,124,255,0.65)";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(px(h.x), px(h.y), px(h.r), Math.PI, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.strokeStyle = "rgba(245,239,229,0.35)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(px(h.x), px(h.y), px(h.r + 6), Math.PI, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+
+    function drawProjectiles() {
+      for (const p of game.projectiles) {
+        ctx.fillStyle = p.color;
+        ctx.fillRect(px(p.x - p.size), px(p.y - p.size), p.size * 2, p.size * 2);
+        ctx.fillStyle = "rgba(255,255,255,0.45)";
+        ctx.fillRect(px(p.x - 1), px(p.y - 1), 2, 2);
+      }
+    }
+
+    function drawParticles() {
+      for (const p of game.particles) {
+        const alpha = clamp(p.life / p.maxLife, 0, 1);
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = alpha;
+        ctx.fillRect(px(p.x), px(p.y), px(p.size), px(p.size));
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    function drawDamageTexts() {
+      ctx.font = "8px monospace";
+      ctx.textAlign = "center";
+
+      for (const t of game.damageTexts) {
+        ctx.globalAlpha = clamp(t.life, 0, 1);
+        ctx.fillStyle = t.color;
+        ctx.fillText(t.text, px(t.x), px(t.y));
+        ctx.globalAlpha = 1;
+      }
+
+      ctx.textAlign = "left";
+    }
+
+    function drawBar(x, y, w, h, p, bg, fg, edge = "#000") {
+      ctx.fillStyle = edge;
+      ctx.fillRect(x - 1, y - 1, w + 2, h + 2);
+      ctx.fillStyle = bg;
+      ctx.fillRect(x, y, w, h);
+      ctx.fillStyle = fg;
+      ctx.fillRect(x, y, Math.floor(w * clamp(p, 0, 1)), h);
+    }
+
+    function drawHUD() {
+      drawBar(14, 15, 118, 7, player.hp / player.maxHp, "#351316", COLORS.hp);
+      drawBar(14, 26, 118, 5, player.stamina / player.maxStamina, "#14351a", COLORS.stamina);
+      drawBar(158, 16, 210, 8, boss.hp / boss.maxHp, "#1e1620", boss.phase === 1 ? "#d2c3b8" : COLORS.echo);
+
+      ctx.fillStyle = "#e8dfce";
+      ctx.font = "8px monospace";
+      ctx.fillText("HP", 14, 12);
+      ctx.fillText("ST", 14, 40);
+
+      ctx.textAlign = "center";
+      ctx.fillStyle = boss.phase === 1 ? "#e8dfce" : COLORS.echo;
+      ctx.fillText(boss.name, 263, 12);
+      ctx.textAlign = "left";
+
+      ctx.fillStyle = COLORS.gold;
+      ctx.fillText("药瓶 " + player.heal, 14, 54);
+
+      if (boss.phase === 2) {
+        ctx.fillStyle = COLORS.echo;
+        ctx.fillText("裂钟回响", 318, 35);
+      }
+
+      if (game.messageTimer > 0) {
+        ctx.textAlign = "center";
+        ctx.fillStyle = "rgba(255,255,255,0.82)";
+        ctx.fillText(game.message, CONFIG.W / 2, 48);
+        ctx.textAlign = "left";
+      }
+
+      if (CONFIG.debug) {
+        drawDebug();
+      }
+    }
+
+    function drawDebug() {
+      ctx.strokeStyle = "lime";
+      ctx.strokeRect(player.x, player.y, player.w, player.h);
+      ctx.strokeStyle = "red";
+      ctx.strokeRect(boss.x, boss.y, boss.w, boss.h);
+
+      ctx.fillStyle = "lime";
+      ctx.font = "8px monospace";
+      ctx.fillText("DEBUG ON / F2", 390, 16);
+    }
+
+    function drawTitle() {
+      ctx.fillStyle = "rgba(0,0,0,0.55)";
+      ctx.fillRect(0, 0, CONFIG.W, CONFIG.H);
+
+      ctx.textAlign = "center";
+      ctx.fillStyle = COLORS.gold;
+      ctx.font = "26px serif";
+      ctx.fillText("灰钟残火", CONFIG.W / 2, 82);
+
+      ctx.fillStyle = "#d8d1bd";
+      ctx.font = "10px monospace";
+      ctx.fillText("ASH BELL: A PIXEL SOULSLIKE BOSS PROTOTYPE", CONFIG.W / 2, 104);
+
+      ctx.fillStyle = "rgba(255,255,255,0.78)";
+      ctx.font = "9px monospace";
+      ctx.fillText("按 Enter 或 J 开始 · A/D 移动 · J 轻击 · K 重击 · Shift 翻滚 · L 弹反", CONFIG.W / 2, 135);
+
+      ctx.fillStyle = "rgba(226,183,111,0.82)";
+      ctx.fillText("不要贪刀。读懂前摇。死后按 R 重开。", CONFIG.W / 2, 154);
+
+      ctx.fillStyle = "rgba(255,255,255,0.55)";
+      ctx.fillText("历史最好时间：" + formatTime(save.bestTime) + " · 通关 " + save.clears + " 次 · 死亡 " + save.deaths + " 次", CONFIG.W / 2, 178);
+
+      ctx.textAlign = "left";
+    }
+
+    function drawPause() {
+      ctx.fillStyle = "rgba(0,0,0,0.58)";
+      ctx.fillRect(0, 0, CONFIG.W, CONFIG.H);
+
+      ctx.textAlign = "center";
+      ctx.fillStyle = COLORS.gold;
+      ctx.font = "22px serif";
+      ctx.fillText("暂停", CONFIG.W / 2, 105);
+
+      ctx.fillStyle = "#e8dfce";
+      ctx.font = "10px monospace";
+      ctx.fillText("Esc 继续 · R 重开 · M 静音", CONFIG.W / 2, 130);
+
+      ctx.textAlign = "left";
+    }
+
+    function drawGameOver() {
+      ctx.fillStyle = "rgba(25,0,0,0.44)";
+      ctx.fillRect(0, 0, CONFIG.W, CONFIG.H);
+
+      ctx.textAlign = "center";
+      ctx.fillStyle = COLORS.blood;
+      ctx.font = "25px serif";
+      ctx.fillText("你已熄灭", CONFIG.W / 2, 100);
+
+      ctx.fillStyle = "#e8dfce";
+      ctx.font = "10px monospace";
+      ctx.fillText("按 R 重新挑战", CONFIG.W / 2, 126);
+
+      ctx.textAlign = "left";
+    }
+
+    function drawVictory() {
+      ctx.fillStyle = "rgba(226,183,111,0.13)";
+      ctx.fillRect(0, 0, CONFIG.W, CONFIG.H);
+
+      ctx.textAlign = "center";
+      ctx.fillStyle = COLORS.gold;
+      ctx.font = "24px serif";
+      ctx.fillText("钟声终止", CONFIG.W / 2, 88);
+
+      ctx.fillStyle = "#e8dfce";
+      ctx.font = "10px monospace";
+      ctx.fillText("通关时间：" + formatTime(game.elapsed), CONFIG.W / 2, 116);
+      ctx.fillText("最佳时间：" + formatTime(save.bestTime), CONFIG.W / 2, 134);
+      ctx.fillText("按 R 再战一次", CONFIG.W / 2, 154);
+
+      ctx.textAlign = "left";
+    }
+
+    function formatTime(ms) {
+      if (!ms) return "--:--";
+      const total = Math.floor(ms / 1000);
+      const m = Math.floor(total / 60);
+      const s = total % 60;
+      return String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+    }
+
+    /* =========================================================
+       13. 主循环
+    ========================================================= */
+
+    let lastTime = 0;
+    const STEP = 1 / 60;
+    let acc = 0;
+
+    function loop(t) {
+      requestAnimationFrame(loop);
+
+      if (!lastTime) lastTime = t;
+
+      let delta = (t - lastTime) / 1000;
+      lastTime = t;
+
+      delta = Math.min(delta, 0.1);
+      acc += delta;
+
+      while (acc >= STEP) {
+        update(STEP);
+        acc -= STEP;
+      }
+
+      draw();
+    }
+
+    requestAnimationFrame(loop);
+
+    /* =========================================================
+       14. 按钮事件
+    ========================================================= */
+
+    startBtn.addEventListener("click", () => {
+      if (game.scene === "title" || game.scene === "gameover" || game.scene === "victory") {
+        startPlaying();
+      } else if (game.scene === "pause") {
+        game.scene = "playing";
+      } else {
+        unlockAudio();
+      }
+    });
+
+    restartBtn.addEventListener("click", () => {
+      startPlaying();
+    });
+
+    muteBtn.addEventListener("click", () => {
+      muted = !muted;
+      muteBtn.textContent = muted ? "解除静音" : "静音";
+    });
+
+    canvas.addEventListener("click", () => {
+      unlockAudio();
+
+      if (game.scene === "title") {
+        startPlaying();
+      }
+    });
+
+    /* =========================================================
+       15. 启动提示
+    ========================================================= */
+
+    setTimeout(() => {
+      showNotice(
+        "《灰钟残火》原型已载入。<br>点击画面或按 Enter 开始。Boss 有两个阶段，半血后会进入裂钟回响。",
+        5200
+      );
+    }, 600);
+  </script>
+</body>
+</html>
